@@ -1,0 +1,740 @@
+
+**Autenticação:**
+- `POST /login`
+- `POST /empresas`
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.ProdutoDTO;
+import com.smartstock.backend.model.Produto;
+import com.smartstock.backend.service.ProdutoService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@RestController
+@RequestMapping("/produtos")
+public class ProdutoController {
+
+    @Autowired
+    private ProdutoService service;
+
+    @GetMapping
+    public List<Produto> listar() {
+        return service.listarTodos();
+    }
+
+    // --- A NOSSA NOVA ROTA DE BUSCA AVANÇADA VEM AQUI ---
+    @GetMapping("/busca-avancada")
+    public ResponseEntity<List<Produto>> buscarProdutosAvancado(
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) BigDecimal precoMin,
+            @RequestParam(required = false) BigDecimal precoMax,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio) {
+
+        List<Produto> produtos = service.buscaAvancada(categoria, precoMin, precoMax, dataInicio);
+        return ResponseEntity.ok(produtos);
+    }
+
+    @PostMapping
+    public ResponseEntity<Produto> cadastrar(@RequestBody @Valid ProdutoDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+
+    // Traz apenas os que estão a acabar, filtrado por empresa
+    @GetMapping("/criticos")
+    public List<Produto> listarEstoqueCritico() {
+        return service.listarEstoqueCritico();
+    }
+
+    // Rota 3: ATUALIZAR UM PRODUTO (PUT)
+    @PutMapping("/{id}")
+    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @RequestBody @Valid ProdutoDTO dto) {
+        Produto produtoAtualizado = service.atualizar(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 4: APAGAR UM PRODUTO (DELETE)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+    // Rota 5: ADICIONAR UM NOVO LOTE (ENTRADA DE STOCK)
+    @PostMapping("/{id}/lotes")
+    public ResponseEntity<Produto> darEntradaLote(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.LoteDTO dto) {
+        Produto produtoAtualizado = service.adicionarLote(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 6: REGISTAR VENDA/BAIXA (SAÍDA DE STOCK COM FEFO)
+    @PostMapping("/{id}/saida")
+    public ResponseEntity<String> registarSaida(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.SaidaDTO dto) {
+        service.registrarSaida(id, dto.getQuantidadeDesejada());
+        return ResponseEntity.ok("Saída de " + dto.getQuantidadeDesejada() + " unidades registada com sucesso! Lotes atualizados via FEFO.");
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.LoginRequest;
+import com.smartstock.backend.dto.LoginResponse;
+import com.smartstock.backend.dto.RegistroEmpresaDTO;
+import com.smartstock.backend.repository.EmpresaRepository;
+import com.smartstock.backend.repository.UsuarioRepository;
+import com.smartstock.backend.service.RegistroService; //
+import com.smartstock.backend.service.TokenService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private UsuarioRepository userRepository;
+
+    @Autowired
+    private EmpresaRepository empresaRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private RegistroService registroService;
+
+    // --- ROTA PÚBLICA DE CADASTRO DA EMPRESA E DO DONO ---
+    @PostMapping("/registrar-empresa")
+    public ResponseEntity<String> registrar(@RequestBody @Valid RegistroEmpresaDTO dto) {
+        try {
+            String mensagem = registroService.registrarNovaEmpresa(dto);
+            return ResponseEntity.ok(mensagem);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- ROTA DE LOGIN ---
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+
+        var userOptional = userRepository.findByEmail(loginRequest.email());
+
+        if (userOptional.isEmpty() || !userOptional.get().isLoginCorrect(loginRequest, passwordEncoder)) {
+            throw new BadCredentialsException("Usuário ou senha inválidos!");
+        }
+
+        var user = userOptional.get();
+
+        if (user.getEmpresa() != null) {
+            user.getEmpresa().setUltimoAcesso(LocalDateTime.now());
+            empresaRepository.save(user.getEmpresa());
+        }
+
+        var jwtValue = tokenService.gerarToken(user);
+        var expiresIn = 3600L;
+
+        return ResponseEntity.ok(new LoginResponse(jwtValue, expiresIn));
+    }
+}
+
+**Autenticação:**
+- `POST /login`
+- `POST /empresas`
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.ProdutoDTO;
+import com.smartstock.backend.model.Produto;
+import com.smartstock.backend.service.ProdutoService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@RestController
+@RequestMapping("/produtos")
+public class ProdutoController {
+
+    @Autowired
+    private ProdutoService service;
+
+    @GetMapping
+    public List<Produto> listar() {
+        return service.listarTodos();
+    }
+
+    // --- A NOSSA NOVA ROTA DE BUSCA AVANÇADA VEM AQUI ---
+    @GetMapping("/busca-avancada")
+    public ResponseEntity<List<Produto>> buscarProdutosAvancado(
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) BigDecimal precoMin,
+            @RequestParam(required = false) BigDecimal precoMax,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio) {
+
+        List<Produto> produtos = service.buscaAvancada(categoria, precoMin, precoMax, dataInicio);
+        return ResponseEntity.ok(produtos);
+    }
+
+    @PostMapping
+    public ResponseEntity<Produto> cadastrar(@RequestBody @Valid ProdutoDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+
+    // Traz apenas os que estão a acabar, filtrado por empresa
+    @GetMapping("/criticos")
+    public List<Produto> listarEstoqueCritico() {
+        return service.listarEstoqueCritico();
+    }
+
+    // Rota 3: ATUALIZAR UM PRODUTO (PUT)
+    @PutMapping("/{id}")
+    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @RequestBody @Valid ProdutoDTO dto) {
+        Produto produtoAtualizado = service.atualizar(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 4: APAGAR UM PRODUTO (DELETE)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+    // Rota 5: ADICIONAR UM NOVO LOTE (ENTRADA DE STOCK)
+    @PostMapping("/{id}/lotes")
+    public ResponseEntity<Produto> darEntradaLote(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.LoteDTO dto) {
+        Produto produtoAtualizado = service.adicionarLote(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 6: REGISTAR VENDA/BAIXA (SAÍDA DE STOCK COM FEFO)
+    @PostMapping("/{id}/saida")
+    public ResponseEntity<String> registarSaida(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.SaidaDTO dto) {
+        service.registrarSaida(id, dto.getQuantidadeDesejada());
+        return ResponseEntity.ok("Saída de " + dto.getQuantidadeDesejada() + " unidades registada com sucesso! Lotes atualizados via FEFO.");
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.LoginRequest;
+import com.smartstock.backend.dto.LoginResponse;
+import com.smartstock.backend.dto.RegistroEmpresaDTO;
+import com.smartstock.backend.repository.EmpresaRepository;
+import com.smartstock.backend.repository.UsuarioRepository;
+import com.smartstock.backend.service.RegistroService; //
+import com.smartstock.backend.service.TokenService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private UsuarioRepository userRepository;
+
+    @Autowired
+    private EmpresaRepository empresaRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private RegistroService registroService;
+
+    // --- ROTA PÚBLICA DE CADASTRO DA EMPRESA E DO DONO ---
+    @PostMapping("/registrar-empresa")
+    public ResponseEntity<String> registrar(@RequestBody @Valid RegistroEmpresaDTO dto) {
+        try {
+            String mensagem = registroService.registrarNovaEmpresa(dto);
+            return ResponseEntity.ok(mensagem);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- ROTA DE LOGIN ---
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+
+        var userOptional = userRepository.findByEmail(loginRequest.email());
+
+        if (userOptional.isEmpty() || !userOptional.get().isLoginCorrect(loginRequest, passwordEncoder)) {
+            throw new BadCredentialsException("Usuário ou senha inválidos!");
+        }
+
+        var user = userOptional.get();
+
+        if (user.getEmpresa() != null) {
+            user.getEmpresa().setUltimoAcesso(LocalDateTime.now());
+            empresaRepository.save(user.getEmpresa());
+        }
+
+        var jwtValue = tokenService.gerarToken(user);
+        var expiresIn = 3600L;
+
+        return ResponseEntity.ok(new LoginResponse(jwtValue, expiresIn));
+    }
+}
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.SugestaoCompraDTO;
+import com.smartstock.backend.service.CompraService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/compras")
+public class CompraController {
+
+    @Autowired
+    private CompraService service;
+
+    @GetMapping("/sugestoes-whatsapp")
+    public List<SugestaoCompraDTO> obterSugestoes() {
+        return service.gerarSugestoesDeCompraWhatsapp();
+    }
+}
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.DashboardDTO;
+import com.smartstock.backend.service.DashboardService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/dashboard")
+public class DashboardController {
+
+    @Autowired
+    private DashboardService service;
+
+    @GetMapping("/resumo")
+    public DashboardDTO obterResumo() {
+        return service.obterResumoDashboard();
+    }
+
+    @GetMapping("/grafico")
+    public java.util.List<com.smartstock.backend.dto.GraficoDTO> obterGrafico() {
+        return service.obterDadosGrafico();
+    }
+}
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.EmpresaDTO;
+import com.smartstock.backend.model.Empresa;
+import com.smartstock.backend.service.EmpresaService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/empresas")
+public class EmpresaController {
+
+    @Autowired
+    private EmpresaService service;
+
+    // Apenas o suporte (SUPER_ADMIN) pode listar todas as empresas do sistema
+    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @GetMapping
+    public List<Empresa> listar() {
+        return service.listarTodas();
+    }
+
+    // Apenas o suporte (SUPER_ADMIN) pode criar uma empresa de forma manual/isolada
+    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PostMapping
+    public ResponseEntity<Empresa> cadastrar(@RequestBody @Valid EmpresaDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.EstatisticasDTO;
+import com.smartstock.backend.service.EstatisticasService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/estatisticas")
+public class EstatisticasController {
+
+    @Autowired
+    private EstatisticasService service;
+
+    // Trancado: Apenas gestores podem aceder a dados financeiros profundos
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')")
+    @GetMapping
+    public EstatisticasDTO obterEstatisticas() {
+        return service.gerarEstatisticas();
+    }
+}
+
+package  com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.FornecedorDTO;
+import com.smartstock.backend.model.Fornecedor;
+import com.smartstock.backend.service.FornecedorService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/fornecedores")
+public class FornecedorController {
+
+    @Autowired
+    private FornecedorService service;
+
+    @GetMapping
+    public List<Fornecedor> listar() {
+        return service.listarTodos();
+    }
+
+    @PostMapping
+    public ResponseEntity<Fornecedor> criar(@RequestBody @Valid FornecedorDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Fornecedor> atualizar(@PathVariable Long id, @RequestBody @Valid FornecedorDTO dto) {
+        return ResponseEntity.ok(service.atualizar(id, dto));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.service.ImportacaoService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType; // Importação necessária
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/importacao")
+public class ImportacaoController {
+
+    private final ImportacaoService importacaoService;
+
+    public ImportacaoController(ImportacaoService importacaoService) {
+        this.importacaoService = importacaoService;
+    }
+
+
+    @PostMapping(value = "/lote", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> importarEmLote(@RequestParam("ficheiro") MultipartFile ficheiro) {
+        try {
+            if (ficheiro.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("O ficheiro está vazio.");
+            }
+
+            String relatorio = importacaoService.processarFicheiro(ficheiro);
+
+            return ResponseEntity.ok(relatorio);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao processar o ficheiro: " + e.getMessage());
+        }
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.model.Movimentacao;
+import com.smartstock.backend.service.MovimentacaoService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/movimentacoes")
+public class MovimentacaoController {
+
+    @Autowired
+    private MovimentacaoService service;
+
+    // Rota EXCLUSIVA para o Dashboard e Relatórios lerem o histórico
+    @GetMapping
+    public List<Movimentacao> listar() {
+        // O service já extrai a Empresa do JWT com segurança e traz só o que é dela!
+        return service.listarTodas();
+    }
+}
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.ProdutoDTO;
+import com.smartstock.backend.model.Produto;
+import com.smartstock.backend.service.ProdutoService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@RestController
+@RequestMapping("/produtos")
+public class ProdutoController {
+
+    @Autowired
+    private ProdutoService service;
+
+    @GetMapping
+    public List<Produto> listar() {
+        return service.listarTodos();
+    }
+
+    // --- A NOSSA NOVA ROTA DE BUSCA AVANÇADA VEM AQUI ---
+    @GetMapping("/busca-avancada")
+    public ResponseEntity<List<Produto>> buscarProdutosAvancado(
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) BigDecimal precoMin,
+            @RequestParam(required = false) BigDecimal precoMax,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio) {
+
+        List<Produto> produtos = service.buscaAvancada(categoria, precoMin, precoMax, dataInicio);
+        return ResponseEntity.ok(produtos);
+    }
+
+    @PostMapping
+    public ResponseEntity<Produto> cadastrar(@RequestBody @Valid ProdutoDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+
+    // Traz apenas os que estão a acabar, filtrado por empresa
+    @GetMapping("/criticos")
+    public List<Produto> listarEstoqueCritico() {
+        return service.listarEstoqueCritico();
+    }
+
+    // Rota 3: ATUALIZAR UM PRODUTO (PUT)
+    @PutMapping("/{id}")
+    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @RequestBody @Valid ProdutoDTO dto) {
+        Produto produtoAtualizado = service.atualizar(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 4: APAGAR UM PRODUTO (DELETE)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+    // Rota 5: ADICIONAR UM NOVO LOTE (ENTRADA DE STOCK)
+    @PostMapping("/{id}/lotes")
+    public ResponseEntity<Produto> darEntradaLote(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.LoteDTO dto) {
+        Produto produtoAtualizado = service.adicionarLote(id, dto);
+        return ResponseEntity.ok(produtoAtualizado);
+    }
+
+    // Rota 6: REGISTAR VENDA/BAIXA (SAÍDA DE STOCK COM FEFO)
+    @PostMapping("/{id}/saida")
+    public ResponseEntity<String> registarSaida(@PathVariable Long id, @RequestBody com.smartstock.backend.dto.SaidaDTO dto) {
+        service.registrarSaida(id, dto.getQuantidadeDesejada());
+        return ResponseEntity.ok("Saída de " + dto.getQuantidadeDesejada() + " unidades registada com sucesso! Lotes atualizados via FEFO.");
+    }
+}
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.service.RelatorioPdfService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/relatorios")
+public class RelatorioController {
+
+    private final RelatorioPdfService relatorioPdfService;
+
+    public RelatorioController(RelatorioPdfService relatorioPdfService) {
+        this.relatorioPdfService = relatorioPdfService;
+    }
+
+    @GetMapping("/balanco/pdf")
+    public ResponseEntity<byte[]> descarregarBalancoPdf() {
+        // o método não precisa receber o nome, ele usa o JWT do usuário logado!
+        byte[] pdfBytes = relatorioPdfService.gerarBalancoGeralPdf();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "balanco_estoque_smartstock.pdf");
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/movimentacoes/pdf")
+    public ResponseEntity<byte[]> descarregarMovimentacoesPdf() {
+        byte[] pdfBytes = relatorioPdfService.gerarRelatorioMovimentacoesPdf();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "historico_movimentacoes_smartstock.pdf");
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/inventario/pdf")
+    public ResponseEntity<byte[]> descarregarInventarioPdf() {
+        byte[] pdfBytes = relatorioPdfService.gerarRelatorioInventarioFiscalPdf();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "inventario_fiscal_smartstock.pdf");
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.UsuarioDTO;
+import com.smartstock.backend.model.Usuario;
+import com.smartstock.backend.service.UsuarioService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/usuarios")
+public class UsuarioController {
+
+    @Autowired
+    private UsuarioService service;
+
+
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')") //
+    @GetMapping
+    public List<Usuario> listar() {
+        return service.listarTodos();
+    }
+
+    // GET - Buscar por ID
+    @GetMapping("/{id}")
+    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
+        return service.buscarPorId(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // POST - Criar novo (TRANCADO: Apenas gestores podem cadastrar novos funcionários)
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')")
+    @PostMapping
+    public ResponseEntity<Usuario> criar(@RequestBody @Valid UsuarioDTO dto) {
+        System.out.println("🚀 SUCESSO: A requisição chegou no Controller de Criação (Autorizada)!");
+        return ResponseEntity.ok(service.salvar(dto));
+    }
+
+    // PUT - Atualizar
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<Usuario> atualizar(@PathVariable Long id, @RequestBody @Valid UsuarioDTO dto) {
+
+        return ResponseEntity.ok(service.atualizar(id, dto));
+    }
+
+    // DELETE - Apagar
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+package com.smartstock.backend.controller;
+
+import com.smartstock.backend.dto.VendaExternaDTO;
+import com.smartstock.backend.service.WebhookService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/webhooks")
+public class WebhookController {
+
+    private final WebhookService webhookService;
+
+    public WebhookController(WebhookService webhookService) {
+        this.webhookService = webhookService;
+    }
+
+    @PostMapping("/vendas")
+    public ResponseEntity<String> receberVendaExterna(@RequestBody VendaExternaDTO dto) {
+        String resultado = webhookService.processarVendaExterna(dto);
+        return ResponseEntity.ok(resultado);
+    }
+}
+
+
+
+
