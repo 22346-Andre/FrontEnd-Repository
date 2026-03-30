@@ -7,11 +7,14 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+// 🚨 Importação do Botão do Google
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const { login } = useAuth();
+  // 🚨 Puxamos a função loginComGoogle do contexto!
+  const { login, loginComGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +100,40 @@ export default function Login() {
             >
               Entrar
             </Button>
+
+            {/* DIVISÓRIA BONITA E BOTÃO DO GOOGLE */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-700" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-[#121826] px-2 text-gray-400">Ou continue com</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center pb-2">
+              <GoogleLogin
+                // 🚨 Agora chamamos a função real que manda o token pro Java!
+                onSuccess={async (credentialResponse) => {
+                  if (credentialResponse.credential) {
+                    try {
+                      await loginComGoogle(credentialResponse.credential);
+                      toast.success('Login com Google realizado com sucesso!');
+                      navigate('/dashboard');
+                    } catch (error) {
+                      toast.error('Erro ao entrar. Certifique-se de que este e-mail está cadastrado no sistema.');
+                    }
+                  }
+                }}
+                onError={() => {
+                  toast.error('O Login com o Google falhou.');
+                  console.log('O Login com o Google falhou.');
+                }}
+                useOneTap
+                theme="filled_black" // Tema escuro para combinar com sua tela!
+              />
+            </div>
+            {/* FIM DO BLOCO DO GOOGLE */}
 
             <div className="text-center text-sm text-gray-400 pt-4 border-t border-gray-800">
               Não tem uma conta?{' '}

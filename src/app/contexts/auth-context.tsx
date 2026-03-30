@@ -6,15 +6,19 @@ interface User {
   nome: string;
   email: string;
   nomeFantasia: string;
+  role?: string; 
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, senha: string) => Promise<void>;
+  // 🚨 1. Adicionamos a função do Google na interface
+  loginComGoogle: (googleToken: string) => Promise<void>; 
   cadastrar: (data: CadastroData) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  atualizarUsuarioNoContexto: (novoNome: string) => void; 
 }
 
 interface CadastroData {
@@ -29,6 +33,7 @@ interface CadastroData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// 👇 OLHA O AuthProvider AQUI! Tudo o que rege o login fica dentro dele.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,27 +49,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // 🔐 Função de Login (AGORA 100% REAL)
+  // 🔐 Função de Login Normal
   const login = async (email: string, senha: string) => {
     setIsLoading(true);
     try {
       const loginRequest: LoginRequest = { email, senha };
       
-      // 1. Pega o Token
       const response = await authService.login(loginRequest);
       const token = response.token || response.accessToken; 
       localStorage.setItem('token', token);
       
-      // 🚨 2. ADEUS MOCK USER! Busca os dados reais de quem acabou de logar
       const dadosReais = await authService.getMe();
       
-      // 3. Monta o usuário com os dados do banco de dados
       const userReal: User = {
         id: String(dadosReais.id),
         nome: dadosReais.nome,
         email: dadosReais.email,
-        // Pega o nomeFantasia da empresa vinculada ao usuário
-        nomeFantasia: dadosReais.empresa?.nomeFantasia || 'Minha Empresa' 
+        nomeFantasia: dadosReais.empresa?.nomeFantasia || 'Minha Empresa',
+        role: dadosReais.perfil || 'USER' 
+      };
+      
+      setUser(userReal);
+      localStorage.setItem('user', JSON.stringify(userReal));
+      
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🚨 2. NOVA FUNÇÃO: Login com Google (Criada dentro do AuthProvider)
+  const loginComGoogle = async (googleToken: string) => {
+    setIsLoading(true);
+    try {
+      // 1. Manda o token do Google para o nosso Java e pega o nosso Token
+      const response = await authService.loginComGoogle(googleToken);
+      const token = response.token || response.accessToken; 
+      localStorage.setItem('token', token);
+      
+      // 2. Busca os dados reais de quem acabou de logar
+      const dadosReais = await authService.getMe();
+      
+      const userReal: User = {
+        id: String(dadosReais.id),
+        nome: dadosReais.nome,
+        email: dadosReais.email,
+        nomeFantasia: dadosReais.empresa?.nomeFantasia || 'Minha Empresa',
+        role: dadosReais.perfil || 'USER'
       };
       
       setUser(userReal);
@@ -81,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const cadastrar = async (data: CadastroData) => {
     setIsLoading(true);
     try {
-      // Traduz do formato da tela para o formato do Java
       const registroData: RegistroEmpresaDTO = {
         nomeAdmin: data.nomeDono,          
         emailAdmin: data.email,            
@@ -96,7 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await authService.registrarEmpresa(registroData);
       
-      // Faz login automático após sucesso no cadastro
       await login(data.email, data.senha);
       
     } catch (error) {
@@ -113,14 +143,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  // ==========================================
+  // ATUALIZAR NOME NA HORA
+  // ==========================================
+  const atualizarUsuarioNoContexto = (novoNome: string) => {
+    if (user) {
+      const usuarioAtualizado = { ...user, nome: novoNome };
+      setUser(usuarioAtualizado);
+      localStorage.setItem('user', JSON.stringify(usuarioAtualizado));
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
       isAuthenticated: !!user, 
       login, 
+      loginComGoogle, // 🚨 3. Repassando a função para as telas poderem usar
       cadastrar, 
       logout, 
-      isLoading 
+      isLoading,
+      atualizarUsuarioNoContexto 
     }}>
       {children}
     </AuthContext.Provider>

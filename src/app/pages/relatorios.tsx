@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { FileText, Download, BarChart3, Package, Calendar, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, BarChart3, Package, TrendingUp, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
 import { relatorioService } from '../services/relatorio.service';
 import { toast } from 'sonner';
 
@@ -12,53 +12,72 @@ interface Relatorio {
   icone: any;
   tipo: string;
   cor: string;
-  metodo: () => Promise<void>;
+  metodo: (inicio?: string, fim?: string) => Promise<void>;
 }
 
 export default function Relatorios() {
   const [gerando, setGerando] = useState<string | null>(null);
+  
+  // 🟢 ESTADOS DO FILTRO DE DATA
+  const [dataInicio, setDataInicio] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
 
   const relatorios: Relatorio[] = [
     {
       id: '1',
       titulo: 'Relatório de Balanço Geral',
-      descricao: 'Lista completa com todos os produtos, quantidades, valores e fornecedores',
+      descricao: 'Lista completa com todos os produtos, quantidades e valores atuais.',
       icone: Package,
       tipo: 'balanco',
       cor: 'blue',
-      metodo: relatorioService.downloadBalancoPdf
+      metodo: (inicio, fim) => relatorioService.downloadBalancoPdf(inicio, fim)
     },
     {
       id: '2',
       titulo: 'Histórico de Movimentações',
-      descricao: 'Todas as entradas e saídas de estoque do período selecionado',
+      descricao: 'Todas as entradas e saídas de estoque do período selecionado.',
       icone: FileText,
       tipo: 'movimentacoes',
       cor: 'green',
-      metodo: relatorioService.downloadMovimentacoesPdf
+      metodo: (inicio, fim) => relatorioService.downloadMovimentacoesPdf(inicio, fim)
     },
     {
       id: '3',
       titulo: 'Inventário Fiscal',
-      descricao: 'Relatório completo para prestação de contas e auditorias fiscais',
+      descricao: 'Relatório completo para prestação de contas e auditorias fiscais.',
       icone: BarChart3,
       tipo: 'inventario',
       cor: 'purple',
-      metodo: relatorioService.downloadInventarioPdf
+      metodo: (inicio, fim) => relatorioService.downloadInventarioPdf(inicio, fim)
+    },
+    {
+      id: '4',
+      titulo: 'Análise de Quebras e Perdas',
+      descricao: 'Identifique custos invisíveis gerados por avarias e vencimentos.',
+      icone: AlertTriangle,
+      tipo: 'perdas',
+      cor: 'red',
+      metodo: (inicio, fim) => relatorioService.downloadPerdasPdf(inicio, fim)
     }
   ];
 
   const handleGerarRelatorio = async (relatorio: Relatorio) => {
+    // 🟢 Validação de Data: Se preencher uma, tem de preencher a outra
+    if ((dataInicio && !dataFim) || (!dataInicio && dataFim)) {
+      toast.warning('Por favor, preencha a Data Inicial e a Data Final.');
+      return;
+    }
+
     setGerando(relatorio.tipo);
-    
     try {
-      await relatorio.metodo();
+      // Passa as datas para o serviço (se estiverem vazias, o Java gera o histórico total)
+      await relatorio.metodo(dataInicio, dataFim);
       
-      toast.success(`📄 Relatório "${relatorio.titulo}" gerado com sucesso!`, {
+      toast.success(`📄 Relatório "${relatorio.titulo}" gerado!`, {
         description: 'O download começará automaticamente.'
       });
     } catch (error) {
-      console.error('Erro ao gerar relatório:', error);
+      console.error('Erro ao gerar:', error);
       toast.error('Erro ao gerar relatório. Tente novamente.');
     } finally {
       setGerando(null);
@@ -79,9 +98,41 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Central de Relatórios</h1>
-        <p className="text-gray-600">Exporte relatórios completos em PDF</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Central de Relatórios</h1>
+          <p className="text-gray-600">Exporte relatórios completos em PDF</p>
+        </div>
+
+        {/* 🟢 COMPONENTE DE FILTRO DE DATA */}
+        <Card className="bg-white border-gray-200 shadow-sm w-full md:w-auto">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-700 font-medium">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Filtrar Período:
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="date" 
+                className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+              <span className="text-gray-500">até</span>
+              <input 
+                type="date" 
+                className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+              />
+            </div>
+            {(dataInicio || dataFim) && (
+              <Button variant="ghost" size="sm" onClick={() => {setDataInicio(''); setDataFim('');}} className="text-red-500 hover:text-red-700">
+                Limpar
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Cards de Estatísticas Rápidas */}
@@ -132,7 +183,7 @@ export default function Relatorios() {
       </div>
 
       {/* Grid de Relatórios */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {relatorios.map((relatorio) => {
           const cores = getCorClasses(relatorio.cor);
           const Icone = relatorio.icone;
@@ -147,7 +198,7 @@ export default function Relatorios() {
                   </div>
                   <FileText className={`h-5 w-5 ${cores.icon} opacity-50`} />
                 </div>
-                <CardTitle className="mt-4">{relatorio.titulo}</CardTitle>
+                <CardTitle className="mt-4 text-lg">{relatorio.titulo}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-gray-600 min-h-[40px]">
@@ -162,8 +213,8 @@ export default function Relatorios() {
                 >
                   {estaGerando ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      Gerando...
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                      Processando...
                     </>
                   ) : (
                     <>
@@ -178,7 +229,7 @@ export default function Relatorios() {
         })}
       </div>
 
-      {/* Informações sobre os Relatórios */}
+      {/* Informações e Dicas */}
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <CardContent className="pt-6">
           <div className="flex gap-4">
@@ -190,27 +241,8 @@ export default function Relatorios() {
               <div className="space-y-1 text-sm text-gray-700">
                 <p>✅ <strong>Formato:</strong> Todos os relatórios são gerados em PDF profissional</p>
                 <p>✅ <strong>Dados em tempo real:</strong> Informações sempre atualizadas do seu estoque</p>
-                <p>✅ <strong>Exportação rápida:</strong> Geração instantânea com um clique</p>
-                <p>✅ <strong>Histórico completo:</strong> Acesse movimentações de qualquer período</p>
+                <p>✅ <strong>Filtros:</strong> Utilize o filtro de datas acima para limitar o período das movimentações</p>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dica de Uso */}
-      <Card className="border-amber-200 bg-amber-50">
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="text-2xl">💡</div>
-            <div>
-              <h3 className="font-semibold mb-2">Dica: Use relatórios para:</h3>
-              <ul className="space-y-1 text-sm text-gray-700">
-                <li>• <strong>Auditorias:</strong> Relatório Completo de Estoque</li>
-                <li>• <strong>Planejamento de Compras:</strong> Curva ABC e Estoque Baixo</li>
-                <li>• <strong>Prestação de contas:</strong> Relatório Financeiro</li>
-                <li>• <strong>Controle de qualidade:</strong> Relatório de Validade</li>
-              </ul>
             </div>
           </div>
         </CardContent>

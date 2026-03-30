@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useAuth } from '../contexts/auth-context'; // Verifique se o caminho está correto para o seu projeto
+import { useAuth } from '../contexts/auth-context';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -18,6 +18,7 @@ export default function Cadastro() {
     nomeFantasia: '',
     celular: ''
   });
+  
   const { cadastrar } = useAuth();
   const navigate = useNavigate();
 
@@ -26,51 +27,38 @@ export default function Cadastro() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Impede a página de recarregar
+    e.preventDefault(); 
     
-    // 🚨 RASTREADOR 1: Mostra se o botão funcionou e quais dados estão sendo enviados
-    console.log("🚨 1. Botão de Cadastro Clicado! Dados:", formData);
+    console.log("🚨 1. Tentando cadastrar com os dados:", formData);
     
     try {
       await cadastrar(formData);
       
-      // ✅ RASTREADOR 2: Se chegou aqui, o Java disse "Tudo OK!"
       console.log("✅ 2. Cadastro realizado com sucesso no Java!");
       toast.success('Cadastro realizado com sucesso!');
-      navigate('/dashboard'); // Já joga o usuário logado para dentro
+      navigate('/dashboard'); 
       
     } catch (error: any) {
-      // ❌ RASTREADOR 3: Se o Java recusou (ex: E-mail já existe), mostra o erro
       console.error("❌ 3. Ocorreu um erro ao cadastrar:", error);
       
-      const mensagemErro = error.response?.data?.message || 'Erro ao cadastrar. Verifique os dados informados.';
-      toast.error(mensagemErro);
+      // 🚨 Puxa a mensagem real de erro enviada pelo Spring Boot (se existir)
+      const mensagemErro = error.response?.data || error.response?.data?.message || 'Erro ao cadastrar. Verifique os dados informados.';
+      toast.error(typeof mensagemErro === 'string' ? mensagemErro : 'Erro de validação nos dados.');
     }
   };
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-black">
-      {/* Animated Background Effect */}
+      {/* Efeitos de Fundo */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Gradient Overlays */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
-        
-        {/* Dot Grid Pattern */}
         <div className="absolute inset-0" style={{
           backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)',
           backgroundSize: '50px 50px'
         }} />
-        
-        {/* Animated Lines */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse" />
-          <div className="absolute top-2/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" style={{ animationDelay: '2s' }} />
-          <div className="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse" style={{ animationDelay: '4s' }} />
-        </div>
       </div>
 
-      {/* Cadastro Card */}
       <Card className="w-full max-w-2xl relative z-10 backdrop-blur-sm bg-gray-900/80 border-gray-800 text-white shadow-2xl my-8">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
@@ -184,10 +172,9 @@ export default function Cadastro() {
               />
             </div>
 
-            {/* 👇 MUDANÇA PRINCIPAL: Adicionado onClick={handleSubmit} para forçar o evento */}
+            {/* 👇 REMOVIDO o onClick=handleSubmit daqui! O form gerencia isso agora. */}
             <Button 
               type="submit" 
-              onClick={handleSubmit}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-6 shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50"
             >
               Cadastrar Empresa
@@ -203,7 +190,6 @@ export default function Cadastro() {
         </CardContent>
       </Card>
 
-      {/* Footer */}
       <div className="absolute bottom-4 left-0 right-0 text-center text-gray-600 text-xs z-10">
         EstoqueMax © 2026 - Sistema de Gestão de Estoque
       </div>

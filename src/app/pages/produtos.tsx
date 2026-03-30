@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
-import { produtoService, Produto, ProdutoDTO } from '../services/produto.service';
+import { produtoService, Produto, ProdutoDTO, Imposto } from '../services/produto.service'; // 🟢 Import do Imposto
 import { fornecedorService, Fornecedor } from '../services/fornecedor.service';
 import { toast } from 'sonner';
 import api from '../services/api';
@@ -39,7 +39,8 @@ export default function Produtos() {
   const [dialogEditOpen, setDialogEditOpen] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
 
-  const [novoProduto, setNovoProduto] = useState<ProdutoDTO & { quantidade: number }>({
+  // 🟢 NOVO: O estado inicial agora inclui os campos fiscais vazios para evitar bugs
+  const estadoInicialProduto = {
     nome: '',
     codigoBarras: '',
     quantidadeMinima: 0,
@@ -47,8 +48,14 @@ export default function Produtos() {
     precoVenda: 0,
     precoCusto: 0,
     categoria: '',
-    fornecedorId: 0 
-  });
+    fornecedorId: 0,
+    ncm: '',
+    cfop: '',
+    finalidadeEstoque: 'REVENDA',
+    impostos: [] as Imposto[]
+  };
+
+  const [novoProduto, setNovoProduto] = useState<ProdutoDTO & { quantidade: number }>(estadoInicialProduto);
 
   useEffect(() => {
     const queryVoz = searchParams.get('q');
@@ -77,6 +84,56 @@ export default function Produtos() {
     }
   };
 
+  // --- 🟢 LÓGICA DE IMPOSTOS (CRIAR PRODUTO) ---
+  const adicionarLinhaImpostoNovo = () => {
+    setNovoProduto({
+      ...novoProduto,
+      impostos: [...(novoProduto.impostos || []), { sigla: '', esfera: 'Estadual', aliquota: 0 }]
+    });
+  };
+
+  const atualizarImpostoNovo = (index: number, campo: string, valor: any) => {
+    const novaLista = [...(novoProduto.impostos || [])];
+    novaLista[index] = { ...novaLista[index], [campo]: valor };
+    setNovoProduto({ ...novoProduto, impostos: novaLista });
+  };
+
+  const removerImpostoNovo = (index: number) => {
+    const novaLista = (novoProduto.impostos || []).filter((_, i) => i !== index);
+    setNovoProduto({ ...novoProduto, impostos: novaLista });
+  };
+
+  // --- 🟢 LÓGICA DE IMPOSTOS (EDITAR PRODUTO) ---
+  const abrirModalEdicao = (produto: Produto) => {
+    setProdutoEditando({
+      ...produto,
+      impostos: produto.impostos || [], // Garante que nunca fica indefinido
+      finalidadeEstoque: produto.finalidadeEstoque || 'REVENDA'
+    });
+    setDialogEditOpen(true);
+  };
+
+  const adicionarLinhaImpostoEdit = () => {
+    if (!produtoEditando) return;
+    setProdutoEditando({
+      ...produtoEditando,
+      impostos: [...(produtoEditando.impostos || []), { sigla: '', esfera: 'Estadual', aliquota: 0 }]
+    });
+  };
+
+  const atualizarImpostoEdit = (index: number, campo: string, valor: any) => {
+    if (!produtoEditando) return;
+    const novaLista = [...(produtoEditando.impostos || [])];
+    novaLista[index] = { ...novaLista[index], [campo]: valor };
+    setProdutoEditando({ ...produtoEditando, impostos: novaLista });
+  };
+
+  const removerImpostoEdit = (index: number) => {
+    if (!produtoEditando) return;
+    const novaLista = (produtoEditando.impostos || []).filter((_, i) => i !== index);
+    setProdutoEditando({ ...produtoEditando, impostos: novaLista });
+  };
+
   const handleAdicionarProduto = async () => {
     if (novoProduto.fornecedorId === 0 && fornecedores.length > 0) {
       toast.error('Por favor, selecione um Fornecedor!');
@@ -87,11 +144,7 @@ export default function Produtos() {
       await produtoService.criar(novoProduto);
       toast.success('Produto adicionado com sucesso!');
       setDialogOpen(false);
-      setNovoProduto({
-        nome: '', codigoBarras: '', quantidadeMinima: 0, quantidade: 0, 
-        precoVenda: 0, precoCusto: 0, categoria: '', 
-        fornecedorId: fornecedores.length > 0 ? fornecedores[0].id : 0
-      });
+      setNovoProduto({ ...estadoInicialProduto, fornecedorId: fornecedores.length > 0 ? fornecedores[0].id : 0 });
       carregarDados();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao adicionar produto');
@@ -143,40 +196,94 @@ export default function Produtos() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Catálogo de Produtos</h1>
-          <p className="text-gray-600">Gerencie todos os seus produtos</p>
+          <p className="text-gray-600">Gerencie todos os seus produtos e tributações</p>
         </div>
         
+        {/* --- MODAL DE CRIAR PRODUTO --- */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Novo Produto</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Adicionar Novo Produto</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nome</Label><Input value={novoProduto.nome} onChange={e => setNovoProduto({...novoProduto, nome: e.target.value})} /></div>
-                <div className="space-y-2"><Label>Cód. Barras</Label><Input value={novoProduto.codigoBarras} onChange={e => setNovoProduto({...novoProduto, codigoBarras: e.target.value})} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Categoria</Label><Input value={novoProduto.categoria} onChange={e => setNovoProduto({...novoProduto, categoria: e.target.value})} /></div>
-                <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <select className="w-full px-3 py-2 border rounded-md" value={novoProduto.fornecedorId} onChange={e => setNovoProduto({...novoProduto, fornecedorId: Number(e.target.value)})}>
-                    <option value={0}>Selecione um fornecedor</option>
-                    {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                  </select>
+              
+              <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                <h3 className="font-semibold text-gray-700 border-b pb-2">Informações Básicas</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Nome</Label><Input value={novoProduto.nome} onChange={e => setNovoProduto({...novoProduto, nome: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Cód. Barras</Label><Input value={novoProduto.codigoBarras} onChange={e => setNovoProduto({...novoProduto, codigoBarras: e.target.value})} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Categoria</Label><Input value={novoProduto.categoria} onChange={e => setNovoProduto({...novoProduto, categoria: e.target.value})} /></div>
+                  <div className="space-y-2">
+                    <Label>Fornecedor</Label>
+                    <select className="w-full px-3 py-2 border rounded-md bg-white" value={novoProduto.fornecedorId} onChange={e => setNovoProduto({...novoProduto, fornecedorId: Number(e.target.value)})}>
+                      <option value={0}>Selecione um fornecedor</option>
+                      {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>Qtd Inicial</Label><Input type="number" value={novoProduto.quantidade} onChange={e => setNovoProduto({...novoProduto, quantidade: Number(e.target.value)})} /></div>
-                <div className="space-y-2"><Label>Qtd Mínima</Label><Input type="number" value={novoProduto.quantidadeMinima} onChange={e => setNovoProduto({...novoProduto, quantidadeMinima: Number(e.target.value)})} /></div>
+
+              <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                <h3 className="font-semibold text-gray-700 border-b pb-2">Estoque e Preços</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="space-y-2"><Label>Qtd Inicial</Label><Input type="number" value={novoProduto.quantidade} onChange={e => setNovoProduto({...novoProduto, quantidade: Number(e.target.value)})} /></div>
+                  <div className="space-y-2"><Label>Qtd Mínima</Label><Input type="number" value={novoProduto.quantidadeMinima} onChange={e => setNovoProduto({...novoProduto, quantidadeMinima: Number(e.target.value)})} /></div>
+                  <div className="space-y-2"><Label>Custo (R$)</Label><Input type="number" step="0.01" value={novoProduto.precoCusto} onChange={e => setNovoProduto({...novoProduto, precoCusto: Number(e.target.value)})} /></div>
+                  <div className="space-y-2"><Label>Venda (R$)</Label><Input type="number" step="0.01" value={novoProduto.precoVenda} onChange={e => setNovoProduto({...novoProduto, precoVenda: Number(e.target.value)})} /></div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Preço Custo (R$)</Label><Input type="number" step="0.01" value={novoProduto.precoCusto} onChange={e => setNovoProduto({...novoProduto, precoCusto: Number(e.target.value)})} /></div>
-                <div className="space-y-2"><Label>Preço Venda (R$)</Label><Input type="number" step="0.01" value={novoProduto.precoVenda} onChange={e => setNovoProduto({...novoProduto, precoVenda: Number(e.target.value)})} /></div>
+
+              {/* 🟢 DADOS FISCAIS */}
+              <div className="bg-gray-50 p-4 rounded-lg space-y-4 border border-gray-200">
+                <h3 className="font-semibold text-gray-700 border-b pb-2">Dados Fiscais e Tributação</h3>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Finalidade do Estoque</Label>
+                    <select className="w-full px-3 py-2 border rounded-md bg-white" value={novoProduto.finalidadeEstoque} onChange={e => setNovoProduto({ ...novoProduto, finalidadeEstoque: e.target.value })}>
+                      <option value="REVENDA">Revenda</option>
+                      <option value="USO_INTERNO">Uso Interno</option>
+                      <option value="MATERIA_PRIMA">Matéria-Prima</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2"><Label>NCM</Label><Input placeholder="Ex: 84713012" value={novoProduto.ncm || ''} onChange={e => setNovoProduto({ ...novoProduto, ncm: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>CFOP</Label><Input placeholder="Ex: 5102" value={novoProduto.cfop || ''} onChange={e => setNovoProduto({ ...novoProduto, cfop: e.target.value })} /></div>
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <Label>Impostos Aplicáveis</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={adicionarLinhaImpostoNovo}>
+                      <Plus className="h-4 w-4 mr-2" /> Adicionar Imposto
+                    </Button>
+                  </div>
+
+                  {(novoProduto.impostos || []).map((imposto, index) => (
+                    <div key={index} className="flex gap-2 items-center mt-2">
+                      <Input placeholder="Sigla (Ex: ICMS)" className="w-1/3" value={imposto.sigla} onChange={e => atualizarImpostoNovo(index, 'sigla', e.target.value)} />
+                      <select className="w-1/3 px-3 py-2 border rounded-md bg-white" value={imposto.esfera} onChange={e => atualizarImpostoNovo(index, 'esfera', e.target.value)}>
+                        <option value="Estadual">Estadual</option>
+                        <option value="Federal">Federal</option>
+                        <option value="Municipal">Municipal</option>
+                      </select>
+                      <div className="relative w-1/3">
+                        <Input type="number" placeholder="Alíquota" value={imposto.aliquota} onChange={e => atualizarImpostoNovo(index, 'aliquota', Number(e.target.value))} />
+                        <span className="absolute right-3 top-2 text-gray-500">%</span>
+                      </div>
+                      <Button type="button" variant="ghost" className="text-red-500 p-2" onClick={() => removerImpostoNovo(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(novoProduto.impostos?.length === 0) && <p className="text-xs text-gray-500 italic">Produto isento (nenhum imposto cadastrado).</p>}
+                </div>
               </div>
+
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -185,8 +292,9 @@ export default function Produtos() {
           </DialogContent>
         </Dialog>
 
+        {/* --- MODAL DE EDITAR PRODUTO --- */}
         <Dialog open={dialogEditOpen} onOpenChange={setDialogEditOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Editar Produto</DialogTitle></DialogHeader>
             {produtoEditando && (
               <div className="grid gap-4 py-4">
@@ -202,6 +310,52 @@ export default function Produtos() {
                   <div className="space-y-2"><Label>Preço Custo (R$)</Label><Input type="number" step="0.01" value={produtoEditando.precoCusto} onChange={e => setProdutoEditando({...produtoEditando, precoCusto: Number(e.target.value)})} /></div>
                   <div className="space-y-2"><Label>Preço Venda (R$)</Label><Input type="number" step="0.01" value={produtoEditando.precoVenda} onChange={e => setProdutoEditando({...produtoEditando, precoVenda: Number(e.target.value)})} /></div>
                 </div>
+
+                {/* 🟢 DADOS FISCAIS (EDIÇÃO) */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4 border border-gray-200 mt-4">
+                  <h3 className="font-semibold text-gray-700 border-b pb-2">Dados Fiscais e Tributação</h3>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Finalidade do Estoque</Label>
+                      <select className="w-full px-3 py-2 border rounded-md bg-white" value={produtoEditando.finalidadeEstoque} onChange={e => setProdutoEditando({ ...produtoEditando, finalidadeEstoque: e.target.value })}>
+                        <option value="REVENDA">Revenda</option>
+                        <option value="USO_INTERNO">Uso Interno</option>
+                        <option value="MATERIA_PRIMA">Matéria-Prima</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2"><Label>NCM</Label><Input placeholder="Ex: 84713012" value={produtoEditando.ncm || ''} onChange={e => setProdutoEditando({ ...produtoEditando, ncm: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>CFOP</Label><Input placeholder="Ex: 5102" value={produtoEditando.cfop || ''} onChange={e => setProdutoEditando({ ...produtoEditando, cfop: e.target.value })} /></div>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <Label>Impostos Aplicáveis</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={adicionarLinhaImpostoEdit}>
+                        <Plus className="h-4 w-4 mr-2" /> Adicionar Imposto
+                      </Button>
+                    </div>
+
+                    {(produtoEditando.impostos || []).map((imposto, index) => (
+                      <div key={index} className="flex gap-2 items-center mt-2">
+                        <Input placeholder="Sigla (Ex: ICMS)" className="w-1/3" value={imposto.sigla} onChange={e => atualizarImpostoEdit(index, 'sigla', e.target.value)} />
+                        <select className="w-1/3 px-3 py-2 border rounded-md bg-white" value={imposto.esfera} onChange={e => atualizarImpostoEdit(index, 'esfera', e.target.value)}>
+                          <option value="Estadual">Estadual</option>
+                          <option value="Federal">Federal</option>
+                          <option value="Municipal">Municipal</option>
+                        </select>
+                        <div className="relative w-1/3">
+                          <Input type="number" placeholder="Alíquota" value={imposto.aliquota} onChange={e => atualizarImpostoEdit(index, 'aliquota', Number(e.target.value))} />
+                          <span className="absolute right-3 top-2 text-gray-500">%</span>
+                        </div>
+                        <Button type="button" variant="ghost" className="text-red-500 p-2" onClick={() => removerImpostoEdit(index)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             )}
             <DialogFooter>
@@ -226,7 +380,6 @@ export default function Produtos() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Código de Barras</TableHead>
                 <TableHead>Categoria</TableHead>
-                {/* 🚨 NOVA COLUNA: Curva ABC */}
                 <TableHead className="text-center">Curva ABC</TableHead>
                 <TableHead className="text-right">Quantidade</TableHead>
                 <TableHead className="text-right">Preço Venda</TableHead>
@@ -247,7 +400,6 @@ export default function Produtos() {
                     <TableCell className="text-gray-600">{produto.codigoBarras || '-'}</TableCell>
                     <TableCell>{produto.categoria || '-'}</TableCell>
                     
-                    {/* 🚨 A MÁGICA VISUAL DA CURVA ABC */}
                     <TableCell className="text-center">
                       {produto.classificacaoABC === 'A' && (
                         <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
@@ -273,7 +425,8 @@ export default function Produtos() {
                     <TableCell className="text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.precoVenda || 0)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => { setProdutoEditando(produto); setDialogEditOpen(true); }}>
+                        {/* 🟢 O onClick chama abrirModalEdicao para preparar os Impostos! */}
+                        <Button size="sm" variant="outline" onClick={() => abrirModalEdicao(produto)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleExcluirProduto(produto.id)} className="text-red-600">

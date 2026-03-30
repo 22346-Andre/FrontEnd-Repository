@@ -1,5 +1,11 @@
 import api from './api';
 
+export interface Imposto {
+  sigla: string;
+  esfera: string;
+  aliquota: number;
+}
+
 export interface Produto {
   id: number;
   nome: string;
@@ -12,6 +18,11 @@ export interface Produto {
   fornecedorId: number;
   fornecedorNome?: string;
   classificacaoABC?: string;
+  
+  ncm?: string;
+  cfop?: string;
+  finalidadeEstoque?: string;
+  impostos?: Imposto[];
 }
 
 export interface ProdutoDTO {
@@ -22,16 +33,28 @@ export interface ProdutoDTO {
   precoVenda: number;
   quantidadeMinima: number;
   fornecedorId: number;
+  
+  ncm?: string;
+  cfop?: string;
+  finalidadeEstoque?: string;
+  impostos?: Imposto[];
 }
 
 export interface LoteDTO {
+  numeroLote?: string; 
   quantidade: number;
   dataValidade?: string;
-  lote?: string;
+  novoPrecoCompra?: number; 
+  // 🟢 Adicionado para aceitar chave no lote/entrada
+  chaveNotaFiscal?: string;
 }
 
 export interface SaidaDTO {
   quantidadeDesejada: number;
+  tipo?: string;
+  motivo?: string;
+  // 🟢 Adicionado para enviar a chave de lote gerada no Frontend
+  chaveNotaFiscal?: string; 
 }
 
 export const produtoService = {
@@ -79,8 +102,8 @@ export const produtoService = {
     return response.data;
   },
 
-  async registrarSaida(id: number, saida: SaidaDTO): Promise<string> {
+  async registrarSaida(id: number, saida: SaidaDTO): Promise<any> {
     const response = await api.post(`/produtos/${id}/saida`, saida);
     return response.data;
-  },
+  }
 };

@@ -1,4 +1,3 @@
-// 🚨 CORREÇÃO 1: Importar SEMPRE do 'react-router-dom'
 import { createBrowserRouter, Navigate } from 'react-router';
 import { DashboardLayout } from './layouts/dashboard-layout';
 import Login from './pages/login';
@@ -12,6 +11,8 @@ import Scanner from './pages/scanner';
 import Configuracoes from './pages/configuracoes';
 import SugestoesCompra from './pages/sugestoes-compra';
 import Relatorios from './pages/relatorios';
+// 🚨 Importei a nova página de Perfil!
+import Perfil from './pages/Perfil';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -32,14 +33,12 @@ export const router = createBrowserRouter([
   // 🔐 ROTAS PRIVADAS (A Catraca do Sistema)
   // ==========================================
   {
-    // 🚨 CORREÇÃO 2: A catraca agora é a dona da rota principal '/'
     path: '/', 
     element: <ProtectedRoute />,
     children: [
       {
         element: <DashboardLayout />, 
         children: [
-          // Se o usuário aceder apenas a "localhost:5173/", vai direto para o Dashboard!
           {
             index: true,
             element: <Navigate to="/dashboard" replace />
@@ -79,6 +78,11 @@ export const router = createBrowserRouter([
           {
             path: 'configuracoes',
             element: <Configuracoes />
+          },
+          // 🚨 A nova rota de Perfil adicionada à catraca!
+          {
+            path: 'perfil',
+            element: <Perfil />
           }
         ]
       }

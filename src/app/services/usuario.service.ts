@@ -11,7 +11,7 @@ export interface Usuario {
 export interface UsuarioDTO {
   nome: string;
   email: string;
-  senha: string;
+  senha?: string; // 🚨 Opcional (com o '?') para não dar erro ao atualizar sem mexer na senha
   role: string;
 }
 
@@ -39,4 +39,18 @@ export const usuarioService = {
   async deletar(id: number): Promise<void> {
     await api.delete(`/usuarios/${id}`);
   },
+
+  // ==========================================
+  // 🚨 NOVOS MÉTODOS: CONFIGURAÇÕES DE PERFIL
+  // ==========================================
+  
+  async atualizarPerfil(dados: { nome: string }): Promise<string> {
+    const response = await api.put('/usuarios/perfil/dados', dados);
+    return response.data;
+  },
+
+  async alterarSenha(dados: { senhaAtual: string; novaSenha: string }): Promise<string> {
+    const response = await api.put('/usuarios/perfil/senha', dados);
+    return response.data;
+  }
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-// 🚨 Importei o ícone "Store" aqui
-import { Bell, Menu, LogOut, Mic, AlertTriangle, Store } from 'lucide-react';
+import { Bell, Menu, LogOut, Mic, AlertTriangle, Store, User } from 'lucide-react';
+// 🚨 Voltamos para o react-router moderno que você já usava!
+import { Link } from 'react-router'; 
 import { Button } from '../components/ui/button';
 import {
   DropdownMenu,
@@ -50,7 +51,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
         
-        {/* 🚀 A SUA LOGO AQUI (OPÇÃO 2: ÍCONE VETORIAL À PROVA DE FALHAS) */}
+        {/* 🚀 LOGO (ÍCONE VETORIAL À PROVA DE FALHAS) */}
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl shadow-sm flex items-center justify-center">
             <Store className="h-5 w-5 text-white" />
@@ -68,7 +69,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       <div className="flex items-center gap-2 sm:gap-4">
         
-        {/* BOTÃO DE MICROFONE MODERNO NO HEADER */}
+        {/* BOTÃO DE MICROFONE */}
         {isSupported && (
           <button
             onClick={toggleListening}
@@ -92,7 +93,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* Linha Divisória */}
         <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
-        {/* 🔔 SININHO DINÂMICO E REAL */}
+        {/* 🔔 SININHO DINÂMICO */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative hover:bg-gray-100 rounded-full">
@@ -143,8 +144,19 @@ export function Header({ onMenuClick }: HeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-gray-500 text-xs uppercase tracking-wider">Ações da Conta</DropdownMenuLabel>
+            
+            {/* 🚨 BOTAO: MEU PERFIL */}
+            <DropdownMenuItem asChild>
+              <Link to="/perfil" className="cursor-pointer flex items-center w-full font-medium text-gray-800 hover:bg-gray-100">
+                <User className="mr-2 h-4 w-4 text-gray-500" />
+                Meu Perfil
+              </Link>
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator />
+            
+            {/* SAIR DO SISTEMA */}
             <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer font-medium hover:bg-red-50 focus:bg-red-50 focus:text-red-700">
               <LogOut className="mr-2 h-4 w-4" />
               Sair do Sistema

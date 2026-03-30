@@ -19,4 +19,9 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  
+  // 🚨 PLANO B: Forçando o React a rodar na porta 3000
+  server: {
+    port: 3000,
+  }
 })

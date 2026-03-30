@@ -29,6 +29,13 @@ export const authService = {
     const response = await api.post('/auth/login', data);
     return response.data;
   },
+  
+// 🚨 NOVO: Login com o Token do Google
+  async loginComGoogle(googleToken: string) {
+    const response = await api.post('/auth/login/google', { token: googleToken });
+    return response.data;
+  },
+
 
   async registrarEmpresa(data: RegistroEmpresaDTO): Promise<string> {
     const response = await api.post('/auth/registrar-empresa', data);
