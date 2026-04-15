@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 // Configure a URL base da sua API Spring Boot
-const API_BASE_URL = 'https://smartstock-backend-xxxx.onrender.com'; 
+const API_BASE_URL = 'https://smartstock-backend-j7em.onrender.com'; 
 
 const api = axios.create({
   baseURL: API_BASE_URL,
