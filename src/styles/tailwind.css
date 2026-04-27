@@ -2,3 +2,6 @@
 @source '../**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';
+<p className="text-justify text-gray-700">
+   As informações de pagamento...
+</p>
