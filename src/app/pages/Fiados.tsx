@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { MessageCircle, CheckCircle, Clock, Search, PlusCircle, AlertCircle, CalendarClock } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, Search, PlusCircle, AlertCircle, CalendarClock, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,6 +24,15 @@ export default function Fiados() {
   const [novoValor, setNovoValor] = useState('');
   const [novaDescricao, setNovaDescricao] = useState('');
   const [novaDataVencimento, setNovaDataVencimento] = useState('');
+
+  // Estados do Modal de Edição
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editCliente, setEditCliente] = useState('');
+  const [editTelefone, setEditTelefone] = useState('');
+  const [editValor, setEditValor] = useState('');
+  const [editDescricao, setEditDescricao] = useState('');
+  const [editDataVencimento, setEditDataVencimento] = useState('');
 
   useEffect(() => {
     carregarDados();
@@ -65,6 +74,40 @@ export default function Fiados() {
       carregarDados();
     } catch (e) {
       toast.error("Erro ao salvar", { id: 'fiado' });
+    }
+  };
+
+  // Função para abrir o modal de edição com os dados preenchidos
+  const handleAbrirEdicao = (conta: ContaReceber) => {
+    setEditId(conta.id);
+    setEditCliente(conta.nomeCliente);
+    setEditTelefone(conta.telefoneCliente || '');
+    setEditValor(conta.valor.toString());
+    setEditDescricao(conta.descricao || '');
+    setEditDataVencimento(conta.dataVencimento);
+    setModalEdicaoAberto(true);
+  };
+
+  // Função para salvar a edição
+  const handleSalvarEdicao = async () => {
+    if (!editId || !editCliente || !editValor || !editDataVencimento) {
+      return toast.error("Preencha os campos obrigatórios (Nome, Valor, Vencimento)");
+    }
+
+    try {
+      toast.loading("A atualizar fiado...", { id: 'edit-fiado' });
+      await fiadoService.atualizarFiado(editId, {
+        nomeCliente: editCliente,
+        telefoneCliente: editTelefone.replace(/\D/g, ''),
+        valor: parseFloat(editValor),
+        descricao: editDescricao || 'Compras diversas',
+        dataVencimento: editDataVencimento,
+      });
+      toast.success("Registo atualizado com sucesso!", { id: 'edit-fiado' });
+      setModalEdicaoAberto(false);
+      carregarDados();
+    } catch (e) {
+      toast.error("Erro ao atualizar o registo.", { id: 'edit-fiado' });
     }
   };
 
@@ -154,8 +197,11 @@ export default function Fiados() {
                           </div>
                           <span className="font-black text-xl text-red-600">R$ {conta.valor.toFixed(2)}</span>
                         </div>
-                        <div className="text-sm text-gray-600 mb-4 bg-muted p-2 rounded">
+                        <div className="text-sm text-gray-600 mb-4 bg-muted p-2 rounded flex justify-between items-center">
                           <p>Venceu em: <strong>{formatarData(conta.dataVencimento)}</strong></p>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700" onClick={() => handleAbrirEdicao(conta)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         </div>
                         
                         <div className="space-y-2">
@@ -183,58 +229,67 @@ export default function Fiados() {
         <TabsContent value="todas">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-4">
                 <CardTitle>Todos os Registos</CardTitle>
-                <div className="relative w-72">
+                <div className="relative w-full sm:w-72">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input placeholder="Procurar cliente..." className="pl-9" value={termoBusca} onChange={e => setTermoBusca(e.target.value)} />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Resumo</TableHead>
-                    <TableHead>Próximo Lembrete</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contasFiltradas.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum registo encontrado.</TableCell></TableRow>
-                  ) : (
-                    contasFiltradas.map(conta => (
-                      <TableRow key={conta.id} className={conta.status === 'PAGO' ? 'opacity-60 bg-muted' : ''}>
-                        <TableCell className="font-medium">{conta.nomeCliente}<br/><span className="text-xs text-gray-400">{conta.telefoneCliente}</span></TableCell>
-                        <TableCell className="max-w-[200px] truncate text-sm">{conta.descricao}</TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          {conta.status === 'PAGO' ? '-' : formatarData(conta.dataProximaCobranca)}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold 
-                            ${conta.status === 'PAGO' ? 'bg-green-100 text-green-700' : 
-                              conta.status === 'ATRASADO' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {conta.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className={`text-right font-bold ${conta.status === 'PAGO' ? 'text-green-600 line-through' : 'text-red-600'}`}>
-                          R$ {conta.valor.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Resumo</TableHead>
+                      <TableHead>Próximo Lembrete</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-center w-[80px]">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contasFiltradas.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum registo encontrado.</TableCell></TableRow>
+                    ) : (
+                      contasFiltradas.map(conta => (
+                        <TableRow key={conta.id} className={conta.status === 'PAGO' ? 'opacity-60 bg-muted' : ''}>
+                          <TableCell className="font-medium">{conta.nomeCliente}<br/><span className="text-xs text-gray-400">{conta.telefoneCliente}</span></TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm">{conta.descricao}</TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            {conta.status === 'PAGO' ? '-' : formatarData(conta.dataProximaCobranca)}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold 
+                              ${conta.status === 'PAGO' ? 'bg-green-100 text-green-700' : 
+                                conta.status === 'ATRASADO' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {conta.status}
+                            </span>
+                          </TableCell>
+                          <TableCell className={`text-right font-bold ${conta.status === 'PAGO' ? 'text-green-600 line-through' : 'text-red-600'}`}>
+                            R$ {conta.valor.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleAbrirEdicao(conta)} disabled={conta.status === 'PAGO'} title="Editar registo">
+                              <Pencil className="w-4 h-4 text-blue-600" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
+      {/* MODAL NOVO FIADO */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md w-[95%]">
           <DialogHeader>
             <DialogTitle>Anotar na Caderneta</DialogTitle>
           </DialogHeader>
@@ -258,12 +313,48 @@ export default function Fiados() {
             <div>
               <label className="text-sm font-medium">Data Combinada para Pagamento</label>
               <Input type="date" value={novaDataVencimento} onChange={e => setNovaDataVencimento(e.target.value)} />
-              <p className="text-xs text-muted-foregroundmt-1">O sistema vai lembrar de cobrar automaticamente 14 dias após esta data.</p>
+              <p className="text-xs text-muted-foreground mt-1">O sistema vai lembrar de cobrar nesta data exata.</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAberto(false)}>Cancelar</Button>
-            <Button onClick={handleSalvarFiado} className="bg-blue-600 hover:bg-blue-700 text-white">Salvar na Caderneta</Button>
+            <Button variant="outline" onClick={() => setModalAberto(false)} className="w-full sm:w-auto">Cancelar</Button>
+            <Button onClick={handleSalvarFiado} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Salvar na Caderneta</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL EDITAR FIADO */}
+      <Dialog open={modalEdicaoAberto} onOpenChange={setModalEdicaoAberto}>
+        <DialogContent className="sm:max-w-md w-[95%]">
+          <DialogHeader>
+            <DialogTitle>Editar Registo da Caderneta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Nome do Cliente</label>
+              <Input placeholder="Ex: Sr. João da Padaria" value={editCliente} onChange={e => setEditCliente(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">WhatsApp do Cliente</label>
+              <Input placeholder="Ex: 11988887777" type="tel" value={editTelefone} onChange={e => setEditTelefone(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Valor Total (R$)</label>
+              <Input placeholder="Ex: 150.50" type="number" step="0.01" value={editValor} onChange={e => setEditValor(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Resumo da Compra</label>
+              <Input placeholder="Ex: Fardo de Coca-Cola e Salgados" value={editDescricao} onChange={e => setEditDescricao(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Data Combinada para Pagamento</label>
+              <Input type="date" value={editDataVencimento} onChange={e => setEditDataVencimento(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">O alerta de cobrança será ajustado para esta nova data.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalEdicaoAberto(false)} className="w-full sm:w-auto">Cancelar</Button>
+            <Button onClick={handleSalvarEdicao} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Atualizar Registo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

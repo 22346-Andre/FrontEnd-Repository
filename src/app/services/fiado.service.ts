@@ -18,7 +18,7 @@ export interface ContaReceberDTO {
   valor: number;
   descricao: string;
   dataVencimento: string;
-  dataProximaCobranca?: string; // Opcional (se vazio o backend põe 14 dias)
+  dataProximaCobranca?: string; 
 }
 
 export const fiadoService = {
@@ -43,7 +43,7 @@ export const fiadoService = {
   // Pede ao backend o link mágico do WhatsApp codificado
   async obterLinkWhatsApp(id: number): Promise<string> {
     const response = await api.get(`/fiados/${id}/whatsapp`);
-    return response.data.linkWhatsApp; // Vem do Map.of("linkWhatsApp", link) do Java
+    return response.data.linkWhatsApp; 
   },
 
   // Marca que o cliente já pagou tudo
@@ -55,6 +55,12 @@ export const fiadoService = {
   // O cliente pediu "dá-me mais 5 dias". Isto adia a próxima cobrança.
   async adiarCobranca(id: number, dias: number): Promise<ContaReceber> {
     const response = await api.put(`/fiados/${id}/adiar?dias=${dias}`);
+    return response.data;
+  },
+
+  
+  async atualizarFiado(id: number, dados: ContaReceberDTO): Promise<ContaReceber> {
+    const response = await api.put(`/fiados/${id}`, dados);
     return response.data;
   }
 };
