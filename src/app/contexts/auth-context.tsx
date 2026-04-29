@@ -113,12 +113,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const cadastrar = async (data: CadastroData) => {
     setIsLoading(true);
     try {
+      // ✅ AGORA SIM: O mapeamento usa os nomes exatos do Java
       const registroData: RegistroEmpresaDTO = {
-        nomeAdmin: data.nomeDono,          
-        emailAdmin: data.email,            
-        senhaAdmin: data.senha,            
+        nomeDono: data.nomeDono,           
+        email: data.email,             
+        senha: data.senha,             
         cnpj: data.cnpj,                   
-        nomeEmpresa: data.razaoSocial,     
+        razaoSocial: data.razaoSocial,      
         emailContato: data.email,          
         telefoneAdmin: data.celular,
         nomeFantasia: data.nomeFantasia,

@@ -41,7 +41,7 @@ export default function Cadastro() {
     } catch (error: any) {
       console.error("❌ 3. Ocorreu um erro ao cadastrar:", error);
       
-      // 🚨 Puxa a mensagem real de erro enviada pelo Spring Boot (se existir)
+      //  Puxa a mensagem real de erro enviada pelo Spring Boot (se existir)
       const mensagemErro = error.response?.data || error.response?.data?.message || 'Erro ao cadastrar. Verifique os dados informados.';
       toast.error(typeof mensagemErro === 'string' ? mensagemErro : 'Erro de validação nos dados.');
     }
@@ -172,7 +172,7 @@ export default function Cadastro() {
               />
             </div>
 
-            {/* 👇 REMOVIDO o onClick=handleSubmit daqui! O form gerencia isso agora. */}
+            
             <Button 
               type="submit" 
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-6 shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50"

@@ -11,17 +11,17 @@ export interface LoginResponse {
   expiresIn: number;
 }
 
+// ✅ INTERFACE ATUALIZADA: Agora os nomes batem 100% com o Java!
 export interface RegistroEmpresaDTO {
-  nomeAdmin: string;
-  emailAdmin: string;
-  senhaAdmin: string;
+  razaoSocial: string;
+  nomeFantasia?: string;
   cnpj: string;
-  nomeEmpresa: string;
-  emailContato: string;
-  telefoneAdmin: string;
-  // 👇 ADICIONADOS:
-  nomeFantasia: string;
-  telefoneEmpresa: string;
+  emailContato?: string;
+  telefoneEmpresa?: string;
+  nomeDono: string;
+  email: string;
+  senha: string;
+  telefoneAdmin?: string;
 }
 
 export const authService = {
@@ -30,12 +30,11 @@ export const authService = {
     return response.data;
   },
   
-// 🚨 NOVO: Login com o Token do Google
+  // 🚨 NOVO: Login com o Token do Google
   async loginComGoogle(googleToken: string) {
     const response = await api.post('/auth/login/google', { token: googleToken });
     return response.data;
   },
-
 
   async registrarEmpresa(data: RegistroEmpresaDTO): Promise<string> {
     const response = await api.post('/auth/registrar-empresa', data);
