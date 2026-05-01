@@ -109,10 +109,11 @@ export default function Fornecedores() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Gestão de Fornecedores</h1>
-          <p className="text-gray-600">Gerencie seus fornecedores e parceiros</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestão de Fornecedores</h1>
+          <p className="text-gray-600 dark:text-gray-400">Gerencie seus fornecedores e parceiros</p>
         </div>
         
+        {/* MODAL ADICIONAR */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <div className="inline-block">
@@ -121,104 +122,158 @@ export default function Fornecedores() {
               </Button>
             </div>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
             <DialogHeader>
-              <DialogTitle>Adicionar Novo Fornecedor</DialogTitle>
-              <DialogDescription>Preencha as informações do fornecedor abaixo.</DialogDescription>
+              <DialogTitle className="dark:text-white">Adicionar Novo Fornecedor</DialogTitle>
+              <DialogDescription className="dark:text-gray-400">Preencha as informações do fornecedor abaixo.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label>Nome do Fornecedor</Label>
-                <Input value={novoFornecedor.nome} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} />
+                <Label className="dark:text-gray-200">Nome do Fornecedor</Label>
+                <Input 
+                  value={novoFornecedor.nome} 
+                  onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })} 
+                  className="dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:placeholder:text-gray-500"
+                />
               </div>
               <div className="space-y-2">
-                <Label>CNPJ</Label>
-                <Input placeholder="00.000.000/0000-00" value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} />
+                <Label className="dark:text-gray-200">CNPJ</Label>
+                <Input 
+                  placeholder="00.000.000/0000-00" 
+                  value={novoFornecedor.cnpj} 
+                  onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} 
+                  className="dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:placeholder:text-gray-500"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input placeholder="(11) 98765-4321" value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} />
+                <Label className="dark:text-gray-200">Telefone</Label>
+                <Input 
+                  placeholder="(11) 98765-4321" 
+                  value={novoFornecedor.telefone} 
+                  onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} 
+                  className="dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:placeholder:text-gray-500"
+                />
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input type="email" placeholder="contato@fornecedor.com" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} />
+                <Label className="dark:text-gray-200">E-mail</Label>
+                <Input 
+                  type="email" 
+                  placeholder="contato@fornecedor.com" 
+                  value={novoFornecedor.email} 
+                  onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} 
+                  className="dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:placeholder:text-gray-500"
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800">Cancelar</Button>
               <Button onClick={handleAdicionarFornecedor}>Adicionar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
+        {/* MODAL EDITAR */}
         <Dialog open={dialogEditOpen} onOpenChange={setDialogEditOpen}>
-          <DialogContent>
+          <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
             <DialogHeader>
-              <DialogTitle>Editar Fornecedor</DialogTitle>
-              <DialogDescription>Atualize os dados do fornecedor abaixo.</DialogDescription>
+              <DialogTitle className="dark:text-white">Editar Fornecedor</DialogTitle>
+              <DialogDescription className="dark:text-gray-400">Atualize os dados do fornecedor abaixo.</DialogDescription>
             </DialogHeader>
             {fornecedorEditando && (
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label>Nome</Label>
-                  <Input value={fornecedorEditando.nome} onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, nome: e.target.value })} />
+                  <Label className="dark:text-gray-200">Nome</Label>
+                  <Input 
+                    value={fornecedorEditando.nome} 
+                    onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, nome: e.target.value })} 
+                    className="dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>CNPJ</Label>
-                  <Input value={fornecedorEditando.cnpj} onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, cnpj: e.target.value })} />
+                  <Label className="dark:text-gray-200">CNPJ</Label>
+                  <Input 
+                    value={fornecedorEditando.cnpj} 
+                    onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, cnpj: e.target.value })} 
+                    className="dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={fornecedorEditando.telefone} onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, telefone: e.target.value })} />
+                  <Label className="dark:text-gray-200">Telefone</Label>
+                  <Input 
+                    value={fornecedorEditando.telefone} 
+                    onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, telefone: e.target.value })} 
+                    className="dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>E-mail</Label>
-                  <Input value={fornecedorEditando.email} onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, email: e.target.value })} />
+                  <Label className="dark:text-gray-200">E-mail</Label>
+                  <Input 
+                    value={fornecedorEditando.email} 
+                    onChange={(e) => setFornecedorEditando({ ...fornecedorEditando, email: e.target.value })} 
+                    className="dark:bg-gray-800 dark:text-white dark:border-gray-700"
+                  />
                 </div>
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogEditOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setDialogEditOpen(false)} className="dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800">Cancelar</Button>
               <Button onClick={handleSalvarEdicao}>Salvar Alterações</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardHeader>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input placeholder="Buscar por nome ou CNPJ..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-10" />
+            <Input 
+              placeholder="Buscar por nome ou CNPJ..." 
+              value={busca} 
+              onChange={(e) => setBusca(e.target.value)} 
+              className="pl-10 dark:bg-gray-900 dark:text-white dark:border-gray-700 dark:placeholder:text-gray-500" 
+            />
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+              <TableRow className="dark:border-gray-700">
+                <TableHead className="dark:text-gray-300">Nome</TableHead>
+                <TableHead className="dark:text-gray-300">CNPJ</TableHead>
+                <TableHead className="dark:text-gray-300">Telefone</TableHead>
+                <TableHead className="dark:text-gray-300">E-mail</TableHead>
+                <TableHead className="text-right dark:text-gray-300">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {fornecedoresFiltrados.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Nenhum fornecedor encontrado.</TableCell></TableRow>
+                <TableRow className="dark:border-gray-700">
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground dark:text-gray-400">Nenhum fornecedor encontrado.</TableCell>
+                </TableRow>
               ) : (
                 fornecedoresFiltrados.map((fornecedor) => (
-                  <TableRow key={fornecedor.id}>
-                    <TableCell className="font-medium">{fornecedor.nome}</TableCell>
-                    <TableCell className="text-gray-600">{fornecedor.cnpj}</TableCell>
-                    <TableCell className="text-gray-600">{fornecedor.telefone}</TableCell>
-                    <TableCell className="text-gray-600">{fornecedor.email}</TableCell>
+                  <TableRow key={fornecedor.id} className="dark:border-gray-700 dark:hover:bg-gray-700/50">
+                    <TableCell className="font-medium dark:text-white">{fornecedor.nome}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">{fornecedor.cnpj}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">{fornecedor.telefone}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">{fornecedor.email}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => { setFornecedorEditando(fornecedor); setDialogEditOpen(true); }}>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => { setFornecedorEditando(fornecedor); setDialogEditOpen(true); }}
+                          className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleExcluirFornecedor(fornecedor.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleExcluirFornecedor(fornecedor.id)} 
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:border-gray-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
